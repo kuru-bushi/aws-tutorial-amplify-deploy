@@ -73,3 +73,43 @@ export default defineConfig([
 ])
 
 ```
+
+## 初回コミットとpush
+
+本番デプロイ（Amplify Hosting + GitHub 連携）に向けて、`my-amplify-app/` を単体 Git リポジトリ化して GitHub へ push する手順。すべて `my-amplify-app/` ディレクトリ内で実行する。
+
+```bash
+# 0. リポジトリ初期化
+git init
+
+# 1. ブランチ名を main に（古い git では master になるため）
+git branch -M main
+
+# 2. 何がステージされるか事前確認（node_modules や amplify_outputs.json が
+#    含まれていないことを必ずチェック）
+git status
+
+# 3. 全ファイルをステージ
+git add -A
+
+# 4. ステージ内容を最終確認（ファイル名だけ一覧）
+git diff --cached --name-only
+
+# 5. 初回コミット
+git commit -m "chore: Amplify Gen 2 Todo アプリ 初期コミット"
+
+# 6. GitHub に空のリポジトリを作成後、リモート登録して push
+#    （<your-account> / <repo-name> は自分の値に置き換える）
+git remote add origin https://github.com/<your-account>/<repo-name>.git
+git push -u origin main
+```
+
+### 確認ポイント（重要）
+
+ステージ確認時に、以下が **コミット対象に含まれていない**ことを必ず確認する（`.gitignore` で除外済み）。
+
+- `node_modules/`
+- `amplify_outputs.json` … Amplify Hosting (Gen 2) がビルド時に自動生成するためコミットしない
+- `.amplify/`
+
+> AWS アクセスキー / アカウント ID / ARN / トークン等の機密情報をコミットしないこと。
