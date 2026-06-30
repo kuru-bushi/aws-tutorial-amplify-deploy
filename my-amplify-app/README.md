@@ -76,10 +76,17 @@ export default defineConfig([
 
 ## 初回コミットとpush
 
-本番デプロイ（Amplify Hosting + GitHub 連携）に向けて、`my-amplify-app/` を単体 Git リポジトリ化して GitHub へ push する手順。すべて `my-amplify-app/` ディレクトリ内で実行する。
+本番デプロイ（Amplify Hosting + GitHub 連携）に向けて GitHub へ push する手順。
+
+> **リポジトリ構成（実態）**
+> Git リポジトリのルートは **`0_TutorialDeploy/`**（モノレポ構成）。アプリ本体 `my-amplify-app/` はそのサブフォルダ。
+> 下記コマンドはすべて **`0_TutorialDeploy/` ディレクトリ**で実行する。
+> Amplify Hosting 接続時は **App root に `my-amplify-app` を指定**すること（モノレポ扱い）。
+
+実際のリモート: `https://github.com/kuru-bushi/aws-tutorial-amplify-deploy`
 
 ```bash
-# 0. リポジトリ初期化
+# 0. リポジトリ初期化（0_TutorialDeploy で実行）
 git init
 
 # 1. ブランチ名を main に（古い git では master になるため）
@@ -98,11 +105,13 @@ git diff --cached --name-only
 # 5. 初回コミット
 git commit -m "chore: Amplify Gen 2 Todo アプリ 初期コミット"
 
-# 6. GitHub に空のリポジトリを作成後、リモート登録して push
-#    （<your-account> / <repo-name> は自分の値に置き換える）
-git remote add origin https://github.com/<your-account>/<repo-name>.git
+# 6. GitHub に空のリポジトリ（README/.gitignore/license なし）を作成後、
+#    リモート登録して push
+git remote add origin https://github.com/kuru-bushi/aws-tutorial-amplify-deploy.git
 git push -u origin main
 ```
+
+2回目以降の更新は `git add` → `git commit` → `git push` だけでよい。
 
 ### 確認ポイント（重要）
 
@@ -113,3 +122,19 @@ git push -u origin main
 - `.amplify/`
 
 > AWS アクセスキー / アカウント ID / ARN / トークン等の機密情報をコミットしないこと。
+
+### よくあるエラー
+
+- `error: remote origin already exists` … origin は既に登録済み。URL を変えたいときは `git remote set-url origin <URL>` を使う。
+- `remote: Repository not found` … GitHub 上にリポジトリが未作成、またはリポジトリ名のタイポ／認証未設定。GitHub でリポジトリを作成してから再 push する。
+
+## Git に push 後のデプロイ
+
+git push の時点ではまだ公開URLは無い。本番URLは Amplify Hosting 接続後に発行される。
+
+1. Amplify コンソール → 「Deploy an app」→ GitHub を認可
+2. リポジトリ `kuru-bushi/aws-tutorial-amplify-deploy` / ブランチ `main` を選択
+3. **Monorepo にチェックし、App root に `my-amplify-app` を指定**（必須）
+4. ビルド完了で `https://main.xxxxxxxx.amplifyapp.com` 形式の本番URLが発行される
+
+> 発行後は `aws amplify list-apps --region ap-northeast-1` でも URL を確認できる。
