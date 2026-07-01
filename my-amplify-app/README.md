@@ -128,6 +128,24 @@ git push -u origin main
 - `error: remote origin already exists` … origin は既に登録済み。URL を変えたいときは `git remote set-url origin <URL>` を使う。
 - `remote: Repository not found` … GitHub 上にリポジトリが未作成、またはリポジトリ名のタイポ／認証未設定。GitHub でリポジトリを作成してから再 push する。
 
+## デプロイ前チェック（必須・push する前に必ず実施）
+
+AWS の計算リソースとビルド時間には限りがある。**push してから AWS で失敗して気づくのは非効率**なので、**必ずローカルで本番と同じビルドを通してから push する。**
+
+```bash
+cd my-amplify-app
+npm run build   # tsc -b && vite build（＝ Amplify のビルドと同じ内容）
+```
+
+- **成功（`dist/` が生成される）→ push してよい。** AWS でも通る可能性が高い。
+- **失敗 → 直してから push。** その場で原因が分かり、AWS のビルド枠を消費しない。
+
+> ⚠️ **`npm run dev`（Vite）は型チェックをしない**ため、型エラーがあってもローカルでは動いてしまう。
+> AWS のビルドは `tsc -b` を走らせるので、**型エラーは `npm run build` でしか事前に検出できない**。
+> （実際にこのプロジェクトでは、dev では動くが `tsc` で `App.tsx` の型エラーが出てデプロイが失敗した。）
+
+Node/npm のバージョン差でも失敗するため、下記「ビルド環境の注意」も合わせて守ること。
+
 ## Git に push 後のデプロイ
 
 git push の時点ではまだ公開URLは無い。本番URLは Amplify Hosting 接続後に発行される。
@@ -138,3 +156,51 @@ git push の時点ではまだ公開URLは無い。本番URLは Amplify Hosting 
 4. ビルド完了で `https://main.xxxxxxxx.amplifyapp.com` 形式の本番URLが発行される
 
 > 発行後は `aws amplify list-apps --region ap-northeast-1` でも URL を確認できる。
+
+### ビルド環境の注意（Node/npm バージョンを AWS と一致させる）
+
+**ローカルと AWS Amplify の Node / npm バージョンは一致させること。** バージョンが違うと依存解決の結果がズレ、`package-lock.json` が非同期になって `npm ci`（Amplify のビルド）が失敗する原因になる。
+
+- `.nvmrc`（例: `20`）で Node バージョンを固定する
+- `package.json` の `engines`（例: `"node": ">=20 <21"`）で使用バージョンを明示する
+- Amplify コンソールの Build image の Node バージョンをローカルと合わせる
+- lock が非同期になったら `npm install` で同期し直し、`package-lock.json` をコミットする
+
+## デプロイ失敗時のログ解析（ログが大きいとき）
+
+Amplify のビルドログは数百〜数千行と大きい。**ターミナルに全部流すと読めない**ので、**一旦 `tmp.txt` などのファイルに書き出してから、少しずつ `grep`／`tail` で該当箇所を絞り込む。**
+
+### ローカル CLI でビルドログを取得する
+
+事前に IAM ユーザーへ `amplify:ListJobs` / `amplify:GetJob`（必要なら `amplify:ListBranches`）を付与しておく。
+
+```bash
+APP=<app-id>; REGION=ap-northeast-1
+
+# 1. 失敗ジョブの jobId を調べる
+aws amplify list-jobs --app-id $APP --branch-name main --region $REGION --max-items 3 \
+  --query "jobSummaries[].{jobId:jobId,status:status}" --output table
+
+# 2. BUILD ステップの logUrl（S3署名付きURL）を取得
+URL=$(aws amplify get-job --app-id $APP --branch-name main --job-id <JOB_ID> --region $REGION \
+  --query "job.steps[?stepName=='BUILD'].logUrl | [0]" --output text)
+
+# 3. ログを丸ごとファイルに保存（ターミナルに流さない）
+curl -s "$URL" -o tmp.txt
+
+# 4. ファイルから必要な行だけ抽出して解析
+grep -nEi 'error|fail|exit code|TS[0-9]{3,}' tmp.txt | tail -30   # エラー行だけ
+tail -40 tmp.txt                                                  # 末尾（失敗理由が出やすい）
+```
+
+### バックエンド（CloudFormation）の失敗を見るとき
+
+フロントのビルドログとは別。バックエンド（`ampx pipeline-deploy`）の失敗は CloudFormation 側を見る。
+
+```bash
+aws cloudformation describe-stack-events --stack-name <branch-stack-name> --region ap-northeast-1 \
+  --query "StackEvents[?ResourceStatus=='CREATE_FAILED' || ResourceStatus=='UPDATE_FAILED'].{time:Timestamp,type:ResourceType,reason:ResourceStatusReason}" \
+  --output table
+```
+
+> 大きいログをそのまま貼り付け・出力すると解析しづらい。**「ファイルに落とす → grep で絞る → 該当箇所だけ読む」** を徹底する。
