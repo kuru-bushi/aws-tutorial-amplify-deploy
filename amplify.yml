@@ -6,14 +6,15 @@ applications:
       phases:
         build:
           commands:
-            - npm ci --cache .npm --prefer-offline
+            # package-lock.json が非同期でも継続できるよう npm ci ではなく npm install を使用
+            - npm install --cache .npm --prefer-offline
             # Amplify Gen 2 バックエンドをデプロイ（amplify_outputs.json を生成）
             - npx ampx pipeline-deploy --branch $AWS_BRANCH --app-id $AWS_APP_ID
     frontend:
       phases:
         preBuild:
           commands:
-            - npm ci --cache .npm --prefer-offline
+            - npm install --cache .npm --prefer-offline
         build:
           commands:
             - npm run build
