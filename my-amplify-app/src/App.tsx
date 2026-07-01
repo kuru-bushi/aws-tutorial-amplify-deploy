@@ -16,7 +16,10 @@ function App() {
 
   function createTodo() {
     const content = window.prompt('Todo の内容')
-    if (content) client.models.Todo.create({ content })
+    // NOTE: aws-amplify@6.18.0 + @aws-amplify/data-schema@1.26.0 の型不整合で
+    // create() の入力型がインデックスシグネチャ（string[]）に退化するため as any で回避。
+    // 実行時は正常。将来のバージョン整合が入れば as any は削除可。
+    if (content) client.models.Todo.create({ content } as any)
   }
 
   return (
