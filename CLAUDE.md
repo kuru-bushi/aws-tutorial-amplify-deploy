@@ -17,6 +17,8 @@ AWS Amplify Gen 2 の**チュートリアルを兼ねた学習用プロジェク
 | ドキュメント | 記載内容・用途 |
 |--------------|----------------|
 | `CLAUDE.md`（本ファイル） | インデックス＋絶対ルール |
+| `skills.md` | AWS デプロイ実践知（デプロイ前チェック・0からの手順・修正後の再デプロイ方法） |
+| `docs/redeploy-runbook.md` | 再デプロイ手順（全削除後にゼロから作り直す runbook・課金停止の全削除手順） |
 | `docs/development-rules.md` | 開発ルール詳細（コード編集ルール・ドキュメント配置ルール） |
 | `my-amplify-app/docs/` | amplify-app（アプリ本体）に関するドキュメント置き場 |
 | `my-amplify-app/docs/tutorial-plan.md` | チュートリアルのゴール・完了条件・手順 |
